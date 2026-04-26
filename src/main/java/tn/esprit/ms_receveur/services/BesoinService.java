@@ -11,6 +11,8 @@ import tn.esprit.ms_receveur.enums.StatutBesoin;
 import tn.esprit.ms_receveur.repositories.BesoinRepository;
 import tn.esprit.ms_receveur.repositories.StockageRepository;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -25,6 +27,9 @@ public class BesoinService {
 
     @Autowired
     private StockageService stockageService;
+
+    @Autowired
+    private AlerteService alerteService;  // ← AJOUTER
 
     // ✅ CREATE - Créer un besoin
     @Transactional
@@ -49,7 +54,39 @@ public class BesoinService {
         Besoin saved = besoinRepository.save(besoin);
         log.info("Besoin créé pour userId: {}, type: {}", dto.getStockageId(), dto.getTypeProduit());
 
+        // ✅ 4. GÉNÉRER ALERTE IMMÉDIATE SI NÉCESSAIRE
+        genererAlerteApresCreation(saved);
+
         return saved;
+    }
+
+    /**
+     * Génère une alerte immédiatement après création du besoin
+     * (pour J-7, J-3, J-1)
+     */
+    private void genererAlerteApresCreation(Besoin besoin) {
+        if (besoin.getDateExpiration() != null) {
+            LocalDate today = LocalDate.now();
+            long joursRestants = ChronoUnit.DAYS.between(today, besoin.getDateExpiration());
+
+            // Alerte pour J-7, J-3, J-1
+            if (joursRestants == 7 || joursRestants == 3 || joursRestants == 1) {
+                String niveau = alerteService.determinerNiveau((int) joursRestants);
+                String message = alerteService.genererMessage(besoin, (int) joursRestants);
+
+                alerteService.creerAlerte(
+                        besoin.getStockage().getUserId(),
+                        besoin.getId(),
+                        besoin.getTypeProduit(),
+                        message,
+                        niveau,
+                        (int) joursRestants
+                );
+
+                log.info("⚡ Alerte immédiate créée pour le nouveau besoin: {} (J{})",
+                        besoin.getTypeProduit(), joursRestants);
+            }
+        }
     }
 
     // ✅ READ ALL - Récupérer tous les besoins d'un utilisateur
@@ -88,7 +125,14 @@ public class BesoinService {
             besoin.setDateExpiration(dto.getDateExpiration());
         }
 
-        return besoinRepository.save(besoin);
+        Besoin updated = besoinRepository.save(besoin);
+
+        // ✅ GÉNÉRER ALERTE APRÈS MODIFICATION (si la date a changé)
+        if (dto.getDateExpiration() != null) {
+            genererAlerteApresCreation(updated);
+        }
+
+        return updated;
     }
 
     // ✅ DELETE - Supprimer un besoin

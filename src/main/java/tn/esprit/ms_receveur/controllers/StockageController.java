@@ -1,4 +1,3 @@
-// StockageController.java
 package tn.esprit.ms_receveur.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,30 +8,33 @@ import tn.esprit.ms_receveur.entities.Stockage;
 import tn.esprit.ms_receveur.services.StockageService;
 
 @RestController
-@RequestMapping("/internal/stockages")
+@RequestMapping("/api/receveur/stockages")  // ← CHANGÉ POUR LE FRONTEND
 public class StockageController {
 
     @Autowired
     private StockageService stockageService;
 
-    // Endpoint INTERNE appelé par ms_gestionUser
-    @PostMapping("/init/{userId}")
+    // Endpoint INTERNE appelé par ms_gestionUser (garde les deux)
+    @PostMapping("/internal/init/{userId}")
     public ResponseEntity<Stockage> initStockage(@PathVariable Long userId) {
         Stockage stockage = stockageService.creerStockageParDefaut(userId);
         return ResponseEntity.ok(stockage);
     }
-    @PostMapping("/test/init/{userId}")
+
+    @PostMapping("/internal/test/init/{userId}")
     public ResponseEntity<Stockage> testInitStockage(@PathVariable Long userId) {
         Stockage stockage = stockageService.creerStockageParDefaut(userId);
         return ResponseEntity.ok(stockage);
     }
+
+    // ✅ ENDPOINT POUR LE FRONTEND
     @GetMapping("/{userId}")
     public ResponseEntity<Stockage> getStockage(@PathVariable Long userId) {
         Stockage stockage = stockageService.getStockageByUserId(userId);
         return ResponseEntity.ok(stockage);
     }
-    // StockageController.java - Ajoutez cette méthode
 
+    // ✅ ENDPOINT POUR MODIFIER (si le frontend en a besoin)
     @PutMapping("/{userId}")
     public ResponseEntity<Stockage> updateStockage(
             @PathVariable Long userId,
